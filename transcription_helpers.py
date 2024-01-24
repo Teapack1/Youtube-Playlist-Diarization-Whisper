@@ -8,13 +8,16 @@ def transcribe(
     compute_dtype: str,
     suppress_numerals: bool,
     device: str,
+    model_path: str,
 ):
     from faster_whisper import WhisperModel
     from helpers import find_numeral_symbol_tokens, wav2vec2_langs
 
     # Faster Whisper non-batched
     # Run on GPU with FP16
-    whisper_model = WhisperModel(model_name, device=device, compute_type=compute_dtype)
+    whisper_model = WhisperModel(
+        model_name, device=device, compute_type=compute_dtype, download_root=model_path
+    )
 
     # or run on GPU with INT8
     # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
@@ -56,6 +59,7 @@ def transcribe_batched(
     compute_dtype: str,
     suppress_numerals: bool,
     device: str,
+    model_path: str,
 ):
     import whisperx
 
@@ -65,6 +69,7 @@ def transcribe_batched(
         device,
         compute_type=compute_dtype,
         asr_options={"suppress_numerals": suppress_numerals},
+        download_root=model_path,
     )
     audio = whisperx.load_audio(audio_file)
     result = whisper_model.transcribe(audio, language=language, batch_size=batch_size)
