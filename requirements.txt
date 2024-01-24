@@ -1,3 +1,4 @@
+cython
 wget
 nemo_toolkit[asr]==1.21.0
 transformers>=4.26.1

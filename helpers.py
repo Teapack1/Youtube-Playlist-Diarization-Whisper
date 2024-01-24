@@ -250,6 +250,13 @@ def get_speaker_aware_transcript(sentences_speaker_mapping, f):
         speaker = sentence_dict["speaker"]
         sentence = sentence_dict["text"]
 
+        format_timestamp(
+            sentence_dict["start_time"], always_include_hours=True, decimal_marker=","
+        )
+        format_timestamp(
+            sentence_dict["end_time"], always_include_hours=True, decimal_marker=","
+        )
+
         # If this speaker doesn't match the previous one, start a new paragraph
         if speaker != previous_speaker:
             f.write(f"\n\n{speaker}: ")
