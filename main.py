@@ -3,7 +3,7 @@ Install:
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 """
 
-from pytube import Playlist, YouTube,  Channel
+from pytube import Playlist, YouTube, Channel
 from pydub import AudioSegment
 import torch
 import os
@@ -18,15 +18,17 @@ DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file.mp3")
-URL = "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
+PLAYLIST_URL = (
+    "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
+)
 DOWNLOAD_NUMBER = 999  # Number of videos to download from playlist
-CHANNEL_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/*"
+CHANNEL_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
 shorts = True
 
 # Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
 # Williamson podcast https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB
-
+# Williamson shorts https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts
 
 if not os.path.exists(DOWNLOADS):
     os.mkdir(DOWNLOADS)
@@ -36,33 +38,28 @@ if not os.path.exists(DOWNLOADS):
 DiarizePipeline = DiarizePipeline(result_file_path=DATASET_PATH)
 
 
-
 if shorts:
-    shorts = []
-    playlist = Channel(CHANNEL_URL)
-    print(f'Loading videos by: {playlist.channel_name}')
-          
-    #for url in playlist.video_urls[]:
-    #    print(url)
-        
-    for video in playlist.videos:
-        print(f'Current video: {video}')
-        if video.length <= 60:
-            print(f'Downloading video: {video}')
-            shorts.append(video)
-            
+    print("\nLoading all shorts from the channel, this might take a minute or two...")
+    playlist = Channel(CHANNEL_URL).shorts
 else:
-    playlist = Playlist(URL)
-
+    print("\nLoading all videos from the playlist, this might take a minute or two...")
+    playlist = Playlist(PLAYLIST_URL).videos
 
 print(f"Number of videos in playlist: {len(playlist)}")
 
-for number, vid in enumerate(playlist.videos):
-    print(f"Processing video: {number+1} of {DOWNLOAD_NUMBER} (len: {len(playlist)})...")
+for number, vid in enumerate(playlist):
+    print(
+        f"Processing video: {number+1} of {DOWNLOAD_NUMBER} (len: {len(playlist)})..."
+    )
 
     if number == DOWNLOAD_NUMBER:
         print(f"{number+1} of video downloaded. Exitting...")
         break
+
+    # Clear existing mp4 files
+    clear_mp4s = [file for file in os.listdir(DOWNLOADS) if file.endswith(".mp4")]
+    for mp4_file in clear_mp4s:
+        os.remove(os.path.join(DOWNLOADS, mp4_file))
 
     title = vid.title
     print(f"Downloading:\n{title}")
