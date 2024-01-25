@@ -1,6 +1,7 @@
 __pycache__/
 Downloads/*
 venv/*
+ve/*
 *.srt
 *.txt
 *.wav

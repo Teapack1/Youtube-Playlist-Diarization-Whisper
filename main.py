@@ -3,7 +3,7 @@ Install:
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 """
 
-from pytube import Playlist, YouTube
+from pytube import Playlist, YouTube,  Channel
 from pydub import AudioSegment
 import torch
 import os
@@ -11,19 +11,22 @@ from diarize_class import DiarizePipeline
 
 print(torch.version.cuda)
 
-device = "cpu"
+device = "cuda"
 batch_size = 8  # reduce if low on GPU mem
-compute_type = "int8"  # change to "int8" if low on GPU mem (may reduce accuracy)
+compute_type = "float16"  # change to "int8" if low on GPU mem (may reduce accuracy)
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file.mp3")
-URL = "https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A"
-DOWNLOAD_NUMBER = 10  # Number of videos to download from playlist
+URL = "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
+DOWNLOAD_NUMBER = 999  # Number of videos to download from playlist
+CHANNEL_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/*"
+shorts = True
 
 # Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
 # Williamson podcast https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB
+
 
 if not os.path.exists(DOWNLOADS):
     os.mkdir(DOWNLOADS)
@@ -33,12 +36,29 @@ if not os.path.exists(DOWNLOADS):
 DiarizePipeline = DiarizePipeline(result_file_path=DATASET_PATH)
 
 
-playlist = Playlist(URL)
+
+if shorts:
+    shorts = []
+    playlist = Channel(CHANNEL_URL)
+    print(f'Loading videos by: {playlist.channel_name}')
+          
+    #for url in playlist.video_urls[]:
+    #    print(url)
+        
+    for video in playlist.videos:
+        print(f'Current video: {video}')
+        if video.length <= 60:
+            print(f'Downloading video: {video}')
+            shorts.append(video)
+            
+else:
+    playlist = Playlist(URL)
+
 
 print(f"Number of videos in playlist: {len(playlist)}")
 
 for number, vid in enumerate(playlist.videos):
-    print(f"Processing video: {number+1} of {DOWNLOAD_NUMBER}...")
+    print(f"Processing video: {number+1} of {DOWNLOAD_NUMBER} (len: {len(playlist)})...")
 
     if number == DOWNLOAD_NUMBER:
         print(f"{number+1} of video downloaded. Exitting...")

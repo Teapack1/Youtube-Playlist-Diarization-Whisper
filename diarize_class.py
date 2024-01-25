@@ -185,9 +185,16 @@ class DiarizePipeline:
 
     def clean_title(self, title):
         replacements = {
-            " ": "_",
-            "|": "-",
+            "<": "-",
+            ">": "-",
             ":": "-",
+            '"': "'",
+            "/": "-",
+            "\\": "-",
+            "|": "-",
+            "?": "-",
+            "*": "-",
+            " ": "_",
         }
         for old, new in replacements.items():
             title = title.replace(old, new)
@@ -221,9 +228,9 @@ class DiarizePipeline:
                     first_speaker_id = segment["speaker"]
 
                 if first_speaker_id in segment["speaker"]:
-                    segment["speaker"] = "\n###Human:\n"
+                    segment["speaker"] = "user"
                 else:
-                    segment["speaker"] = "\n###Assistant:\n"
+                    segment["speaker"] = "assistant"
                 print(segment)
 
                 # Ensure the segment has all required fields
