@@ -18,16 +18,17 @@ class DiarizePipeline:
         self.last_speaker = None
         self.last_segment = None
 
-        with open(
-            f"{self.result_file_path}/dataset.csv",
-            mode="w",
-            newline="",
-            encoding="utf-8",
-        ) as file:
-            writer = csv.DictWriter(
-                file, fieldnames=["speaker", "text", "title", "start_time", "end_time"]
-            )
-            writer.writeheader()
+        if not os.path.exists(self.result_file_path):
+            with open(
+                f"{self.result_file_path}/dataset.csv",
+                mode="w",
+                newline="",
+                encoding="utf-8",
+            ) as file:
+                writer = csv.DictWriter(
+                    file, fieldnames=["speaker", "text", "title", "start_time", "end_time"]
+                )
+                writer.writeheader()
 
     def __call__(
         self,

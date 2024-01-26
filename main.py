@@ -21,6 +21,7 @@ WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file.mp3")
 PLAYLIST_URL = (
     "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
 )
+DOWNLOAD_START = 182  # Number of videos to skip
 DOWNLOAD_NUMBER = 999  # Number of videos to download from playlist
 CHANNEL_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
 shorts = True
@@ -41,13 +42,15 @@ DiarizePipeline = DiarizePipeline(result_file_path=DATASET_PATH)
 if shorts:
     print("\nLoading all shorts from the channel, this might take a minute or two...")
     playlist = Channel(CHANNEL_URL).shorts
+    playlist = playlist[DOWNLOAD_START-1:len(playlist)]
+
 else:
     print("\nLoading all videos from the playlist, this might take a minute or two...")
     playlist = Playlist(PLAYLIST_URL).videos
 
 print(f"Number of videos in playlist: {len(playlist)}")
 
-for number, vid in enumerate(playlist):
+for number, vid in enumerate(playlist, start=DOWNLOAD_START-1):
     print(
         f"Processing video: {number+1} of {DOWNLOAD_NUMBER} (len: {len(playlist)})..."
     )
