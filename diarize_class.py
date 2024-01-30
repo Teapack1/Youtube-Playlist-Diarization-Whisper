@@ -12,8 +12,8 @@ import csv
 
 
 class DiarizePipeline:
-    def __init__(self, result_file_path):
-        self.mtypes = {"cpu": "int8", "cuda": "float32"}
+    def __init__(self, result_file_path, mtypes):
+        self.mtypes = mtypes
         self.result_file_path = result_file_path
         self.last_speaker = None
         self.last_segment = None
@@ -26,7 +26,8 @@ class DiarizePipeline:
                 encoding="utf-8",
             ) as file:
                 writer = csv.DictWriter(
-                    file, fieldnames=["speaker", "text", "title", "start_time", "end_time"]
+                    file,
+                    fieldnames=["speaker", "text", "title", "start_time", "end_time"],
                 )
                 writer.writeheader()
 

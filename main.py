@@ -9,11 +9,13 @@ import torch
 import os
 from diarize_class import DiarizePipeline
 
+# torch.backends.cuda.preferred_linalg_library("default")
+
 print(torch.version.cuda)
 
 device = "cuda"
 batch_size = 8  # reduce if low on GPU mem
-compute_type = "float16"  # change to "int8" if low on GPU mem (may reduce accuracy)
+mtypes = {"cpu": "int8", "cuda": "float32"}
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
@@ -21,10 +23,11 @@ WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file.mp3")
 PLAYLIST_URL = (
     "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
 )
-DOWNLOAD_START = 182  # Number of videos to skip
-DOWNLOAD_NUMBER = 999  # Number of videos to download from playlist
+
+DOWNLOAD_START = 1  # Start from video number
+DOWNLOAD_NUMBER = 999  # Max number of videos to download
 CHANNEL_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
-shorts = True
+shorts = False
 
 # Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
@@ -36,13 +39,13 @@ if not os.path.exists(DOWNLOADS):
     os.mkdir(MODEL_PATH)
     os.mkdir(DATASET_PATH)
 
-DiarizePipeline = DiarizePipeline(result_file_path=DATASET_PATH)
+DiarizePipeline = DiarizePipeline(result_file_path=DATASET_PATH, mtypes=mtypes)
 
 
 if shorts:
     print("\nLoading all shorts from the channel, this might take a minute or two...")
     playlist = Channel(CHANNEL_URL).shorts
-    playlist = playlist[DOWNLOAD_START-1:len(playlist)]
+    playlist = playlist[DOWNLOAD_START - 1 : len(playlist)]
 
 else:
     print("\nLoading all videos from the playlist, this might take a minute or two...")
@@ -50,7 +53,7 @@ else:
 
 print(f"Number of videos in playlist: {len(playlist)}")
 
-for number, vid in enumerate(playlist, start=DOWNLOAD_START-1):
+for number, vid in enumerate(playlist, start=DOWNLOAD_START - 1):
     print(
         f"Processing video: {number+1} of {DOWNLOAD_NUMBER} (len: {len(playlist)})..."
     )
