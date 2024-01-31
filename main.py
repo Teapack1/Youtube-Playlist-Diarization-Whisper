@@ -1,17 +1,11 @@
 """
 Install:
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip3 install torch==2.0.* torchvision==0.15.* torchaudio==2.0.* --index-url https://download.pytorch.org/whl/cu118
 """
 
-from pytube import Playlist, YouTube, Channel
-from pydub import AudioSegment
-import torch
+import yt_dlp
 import os
 from diarize_class import DiarizePipeline
-
-# torch.backends.cuda.preferred_linalg_library("default")
-
-print(torch.version.cuda)
 
 device = "cuda"
 batch_size = 8  # reduce if low on GPU mem
@@ -19,84 +13,79 @@ mtypes = {"cpu": "int8", "cuda": "float32"}
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
-WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file.mp3")
-PLAYLIST_URL = (
-    "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
+WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
+DOWNLOAD_URL = (
+    "https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A"
 )
-
 DOWNLOAD_START = 1  # Start from video number
 DOWNLOAD_NUMBER = 999  # Max number of videos to download
-CHANNEL_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
-shorts = False
 
 # Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
 # Williamson podcast https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB
 # Williamson shorts https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts
 
+
 if not os.path.exists(DOWNLOADS):
-    os.mkdir(DOWNLOADS)
-    os.mkdir(MODEL_PATH)
-    os.mkdir(DATASET_PATH)
+    os.makedirs(DOWNLOADS, exist_ok=True)
+    os.makedirs(MODEL_PATH, exist_ok=True)
+    os.makedirs(DATASET_PATH, exist_ok=True)
+
 
 DiarizePipeline = DiarizePipeline(result_file_path=DATASET_PATH, mtypes=mtypes)
 
 
-if shorts:
-    print("\nLoading all shorts from the channel, this might take a minute or two...")
-    playlist = Channel(CHANNEL_URL).shorts
-    playlist = playlist[DOWNLOAD_START - 1 : len(playlist)]
+ydl_opts_download = {
+    "format": "bestaudio/best",
+    "outtmpl": WORKING_AUDIO,
+    "postprocessors": [
+        {
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+        }
+    ],
+    "prefer_ffmpeg": True,
+    "keepvideo": False,
+    "quiet": False,  # Path to the cookies file
+    "ignoreerrors": True,  # Continue on download errors
+}
 
-else:
-    print("\nLoading all videos from the playlist, this might take a minute or two...")
-    playlist = Playlist(PLAYLIST_URL).videos
+ydl_opts_info = {
+    "quiet": True,
+    "extract_flat": True,  # Only extract information about the entries in the playlist
+    "force_generic_extractor": True,  # Force using the generic extractor
+}
 
-print(f"Number of videos in playlist: {len(playlist)}")
+with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+    info_dict = ydl.extract_info(DOWNLOAD_URL, download=False)
+    video_info = [
+        {"title": entry["title"], "url": entry["url"]}
+        for entry in info_dict["entries"]
+        if entry.get("url") and entry.get("title")
+    ]
 
-for number, vid in enumerate(playlist, start=DOWNLOAD_START - 1):
-    print(
-        f"Processing video: {number+1} of {DOWNLOAD_NUMBER} (len: {len(playlist)})..."
-    )
+print(f"[INFO] Number of videos in playlist: {len(video_info)}")
+
+for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
+    title = vid["title"]
+    url = vid["url"]
 
     if number == DOWNLOAD_NUMBER:
         print(f"{number+1} of video downloaded. Exitting...")
         break
 
-    # Clear existing mp4 files
-    clear_mp4s = [file for file in os.listdir(DOWNLOADS) if file.endswith(".mp4")]
-    for mp4_file in clear_mp4s:
-        os.remove(os.path.join(DOWNLOADS, mp4_file))
-
-    title = vid.title
-    print(f"Downloading:\n{title}")
-    print(vid.streams.filter(only_audio=True))
-
-    target_stream = (
-        vid.streams.filter(only_audio=True, file_extension="mp4", abr="128kbps")
-        .order_by("abr")
-        .desc()
+    print(
+        f"\n \033[1m[INFO] Processing video:\033[0m \033[4m'{title}'\033[0m: {number+1} of {DOWNLOAD_NUMBER} (len: {len(video_info)})...\n"
     )
-    print(target_stream)
-    target_stream.first().download(DOWNLOADS)
-    print(f"Downloaded: {target_stream.first()}")
 
-    print("Converting from mp4 to mp3...")
+    with yt_dlp.YoutubeDL(ydl_opts_download) as ydl_audio:
+        ydl_audio.download([url])
 
-    downloaded_audio_file = [
-        file for file in os.listdir(DOWNLOADS) if file.endswith(".mp4")
-    ]
-    downloaded_audio_file = os.path.join(DOWNLOADS, downloaded_audio_file[0])
-    print(downloaded_audio_file)
-    audio_file = AudioSegment.from_file(downloaded_audio_file, format="mp4")
-    audio_file.export(WORKING_AUDIO, format="mp3")
-
-    print("Deleting mp4 file...")
-    os.remove(downloaded_audio_file)
-
-    print("Processing diarization pipeline...")
+    print(f"[INFO] Downloaded: {title}")
+    print("[INFO] Processing diarization pipeline...")
 
     DiarizePipeline(
-        audio=WORKING_AUDIO,  # "name of the target audio file"
+        audio=f"{WORKING_AUDIO}.mp3",  # "name of the target audio file"
         stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
         suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
         model_name="medium.en",  # "name of the Whisper model to use"
