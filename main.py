@@ -1,6 +1,7 @@
 """
 Install:
-pip3 install torch==2.0.* torchvision==0.15.* torchaudio==2.0.* --index-url https://download.pytorch.org/whl/cu118
+pip install --use-pep517 -r requirements.txt
+pip install torch==2.0.1 torchvision==0.15.2* torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
 """
 
 import yt_dlp
@@ -15,7 +16,7 @@ MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
 DOWNLOAD_URL = (
-    "https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A"
+    "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
 )
 DOWNLOAD_START = 1  # Start from video number
 DOWNLOAD_NUMBER = 999  # Max number of videos to download
