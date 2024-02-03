@@ -1,9 +1,9 @@
 """
 Install:
 pip install --use-pep517 -r requirements.txt
-pip install torch==2.0.1 torchvision==0.15.2* torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118 --timeout 300 --retries 100
 """
-
+import time
 import yt_dlp
 import os
 from diarize_class import DiarizePipeline
@@ -20,6 +20,9 @@ DOWNLOAD_URL = (
 )
 DOWNLOAD_START = 1  # Start from video number
 DOWNLOAD_NUMBER = 999  # Max number of videos to download
+
+retry_delay = 10  # Delay between retries in seconds
+max_retries = 30
 
 # Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
@@ -49,12 +52,15 @@ ydl_opts_download = {
     "keepvideo": False,
     "quiet": False,  # Path to the cookies file
     "ignoreerrors": True,  # Continue on download errors
+    "socket_timeout": 10,  # Timeout for network operations in seconds
+    "retries": 10,  # Number of retries for a failed download
 }
 
 ydl_opts_info = {
     "quiet": True,
     "extract_flat": True,  # Only extract information about the entries in the playlist
     "force_generic_extractor": True,  # Force using the generic extractor
+
 }
 
 with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
@@ -79,20 +85,40 @@ for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
         f"\n \033[1m[INFO] Processing video:\033[0m \033[4m'{title}'\033[0m: {number+1} of {DOWNLOAD_NUMBER} (len: {len(video_info)})...\n"
     )
 
-    with yt_dlp.YoutubeDL(ydl_opts_download) as ydl_audio:
-        ydl_audio.download([url])
+    for attempt in range(max_retries):
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts_download) as ydl_audio:
+                ydl_audio.download([url])
 
-    print(f"[INFO] Downloaded: {title}")
-    print("[INFO] Processing diarization pipeline...")
+            # Did audio file downloaded successfully? If not raise an error
+            if not os.path.exists(f"{WORKING_AUDIO}.mp3"):
+                raise FileNotFoundError(f"No audio file found for: {title}")
 
-    DiarizePipeline(
-        audio=f"{WORKING_AUDIO}.mp3",  # "name of the target audio file"
-        stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
-        suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
-        model_name="medium.en",  # "name of the Whisper model to use"
-        batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
-        language=None,  # "Language spoken in the audio, specify None to perform language detection",
-        device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
-        model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
-        title=title,  # "title of the video"
-    )
+            print(f"[INFO] Downloaded: {title}")
+            print("[INFO] Processing diarization pipeline...")
+
+            DiarizePipeline(
+                audio=f"{WORKING_AUDIO}.mp3",  # "name of the target audio file"
+                stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
+                suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
+                model_name="medium.en",  # "name of the Whisper model to use"
+                batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
+                language=None,  # "Language spoken in the audio, specify None to perform language detection",
+                device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
+                model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
+                title=title,  # "title of the video"
+            )
+            
+            os.remove(f"{WORKING_AUDIO}.mp3")
+            print(f"[INFO] Deleted audio file: {WORKING_AUDIO}.mp3")
+            break  # Exit retry loop after successful download and processing
+
+        except Exception as e:
+            print(f"[ERROR] An error occurred: {e}")
+            if attempt < max_retries - 1:
+                print(f"[INFO] Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print("[ERROR] Maximum retries reached, skipping video.")
+                break  # Skip to the next video
+
