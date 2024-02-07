@@ -57,21 +57,35 @@ ydl_opts_download = {
 }
 
 ydl_opts_info = {
-    "quiet": True,
+    "quiet": False,
     "extract_flat": True,  # Only extract information about the entries in the playlist
     "force_generic_extractor": True,  # Force using the generic extractor
 
 }
 
-with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
-    info_dict = ydl.extract_info(DOWNLOAD_URL, download=False)
-    video_info = [
+best_attempt_info = None
+max_urls_count = 0
+best_attempt_time = None
+
+
+for attempt in range(22):
+    with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+        info_dict = ydl.extract_info(DOWNLOAD_URL, download=False)
+
+        video_info = [
         {"title": entry["title"], "url": entry["url"]}
         for entry in info_dict["entries"]
         if entry.get("url") and entry.get("title")
     ]
+   
+        print(len(video_info))
+    if len(video_info) > max_urls_count:
+        max_urls_count = len(video_info)
+        best_attempt_info = video_info
+        best_attempt_time = attempt
+video_info = best_attempt_info
 
-print(f"[INFO] Number of videos in playlist: {len(video_info)}")
+print(f"    [INFO] Best attempt ({best_attempt_time+1}) \033[1mfetched \033[4m{len(video_info)} videos\033[0m from the playlist")
 
 for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
     title = vid["title"]
@@ -82,7 +96,7 @@ for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
         break
 
     print(
-        f"\n \033[1m[INFO] Processing video:\033[0m \033[4m'{title}'\033[0m: {number+1} of {DOWNLOAD_NUMBER} (len: {len(video_info)})...\n"
+        f"\n    [INFO] \033[1mProcessing video:\033[0m \033[4m'{title}'\033[0m: {number+1} of {DOWNLOAD_NUMBER} (len: {len(video_info)})...\n       URL: {url}\n"
     )
 
     for attempt in range(max_retries):
