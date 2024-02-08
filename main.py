@@ -3,26 +3,25 @@ Install:
 pip install --use-pep517 -r requirements.txt
 pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118 --timeout 300 --retries 100
 """
+
 import time
 import yt_dlp
 import os
 from diarize_class import DiarizePipeline
 
-device = "cuda"
+device = "cpu"
 batch_size = 8  # reduce if low on GPU mem
 mtypes = {"cpu": "int8", "cuda": "float32"}
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
-DOWNLOAD_URL = (
-    "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
-)
+DOWNLOAD_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
 DOWNLOAD_START = 1  # Start from video number
 DOWNLOAD_NUMBER = 999  # Max number of videos to download
 
 retry_delay = 10  # Delay between retries in seconds
-max_retries = 30
+max_retries = 20
 
 # Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
@@ -52,40 +51,51 @@ ydl_opts_download = {
     "keepvideo": False,
     "quiet": False,  # Path to the cookies file
     "ignoreerrors": True,  # Continue on download errors
-    "socket_timeout": 10,  # Timeout for network operations in seconds
-    "retries": 10,  # Number of retries for a failed download
+    "socket_timeout": retry_delay,  # Timeout for network operations in seconds
+    "retries": max_retries,  # Number of retries for a failed download
 }
 
 ydl_opts_info = {
     "quiet": False,
     "extract_flat": True,  # Only extract information about the entries in the playlist
     "force_generic_extractor": True,  # Force using the generic extractor
-
 }
+
 
 best_attempt_info = None
 max_urls_count = 0
 best_attempt_time = None
 
 
-for attempt in range(22):
-    with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
-        info_dict = ydl.extract_info(DOWNLOAD_URL, download=False)
+for attempt in range(max_retries):
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+            info_dict = ydl.extract_info(DOWNLOAD_URL, download=False)
 
-        video_info = [
-        {"title": entry["title"], "url": entry["url"]}
-        for entry in info_dict["entries"]
-        if entry.get("url") and entry.get("title")
-    ]
-   
-        print(len(video_info))
-    if len(video_info) > max_urls_count:
-        max_urls_count = len(video_info)
-        best_attempt_info = video_info
-        best_attempt_time = attempt
+            video_info = [
+                {"title": entry["title"], "url": entry["url"]}
+                for entry in info_dict["entries"]
+                if entry.get("url") and entry.get("title")
+            ]
+        if len(video_info) > max_urls_count:
+            max_urls_count = len(video_info)
+            best_attempt_info = video_info
+            best_attempt_time = attempt
+
+    except Exception as e:
+        print(f"[ERROR] An error occurred: {e}")
+        if attempt < max_retries - 1:
+            print(f"[INFO] Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+        else:
+            print("[ERROR] Maximum retries reached, skipping video.")
+            break
+
 video_info = best_attempt_info
 
-print(f"    [INFO] Best attempt ({best_attempt_time+1}) \033[1mfetched \033[4m{len(video_info)} videos\033[0m from the playlist")
+print(
+    f"    [INFO] Best attempt ({best_attempt_time+1}) \033[1mfetched \033[4m{len(video_info)} videos\033[0m from the playlist"
+)
 
 for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
     title = vid["title"]
@@ -122,7 +132,7 @@ for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
                 model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
                 title=title,  # "title of the video"
             )
-            
+
             os.remove(f"{WORKING_AUDIO}.mp3")
             print(f"[INFO] Deleted audio file: {WORKING_AUDIO}.mp3")
             break  # Exit retry loop after successful download and processing
@@ -135,4 +145,3 @@ for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
             else:
                 print("[ERROR] Maximum retries reached, skipping video.")
                 break  # Skip to the next video
-
