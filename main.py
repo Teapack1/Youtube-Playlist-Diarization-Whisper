@@ -10,18 +10,19 @@ import os
 from diarize_class import DiarizePipeline
 
 device = "cpu"
-batch_size = 8  # reduce if low on GPU mem
-mtypes = {"cpu": "int8", "cuda": "float32"}
+batch_size = 4  # reduce if low on GPU mem
+#mtypes = {"cpu": "int8", "cuda": "float32"}
+mtypes = {"cpu": "int8", "cuda": "int8_float16"}
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
-DOWNLOAD_URL = "https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts"
+DOWNLOAD_URL = "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
 DOWNLOAD_START = 1  # Start from video number
 DOWNLOAD_NUMBER = 999  # Max number of videos to download
 
-retry_delay = 10  # Delay between retries in seconds
-max_retries = 20
+retry_delay = 60  # Delay between retries in seconds
+max_retries = 3
 
 # Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
@@ -67,7 +68,7 @@ max_urls_count = 0
 best_attempt_time = None
 
 
-for attempt in range(max_retries):
+for attempt in range(1):
     try:
         with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
             info_dict = ydl.extract_info(DOWNLOAD_URL, download=False)
