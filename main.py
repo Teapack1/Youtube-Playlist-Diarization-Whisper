@@ -110,6 +110,11 @@ for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
         f"\n    [INFO] \033[1mProcessing video:\033[0m \033[4m'{title}'\033[0m: {number+1} of {DOWNLOAD_NUMBER} (len: {len(video_info)})...\n       URL: {url}\n"
     )
 
+    if title == "[Private video]" or title == "[Deleted video]":
+        print(f"[INFO] Skipping video: {title}")
+        continue
+    
+    
     for attempt in range(max_retries):
         try:
             with yt_dlp.YoutubeDL(ydl_opts_download) as ydl_audio:
