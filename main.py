@@ -8,16 +8,20 @@ import time
 import yt_dlp
 import os
 from diarize_class import DiarizePipeline
+from helpers import split_audio
 
-device = "cpu"
+device = "cuda"
 batch_size = 4  # reduce if low on GPU mem
-#mtypes = {"cpu": "int8", "cuda": "float32"}
-mtypes = {"cpu": "int8", "cuda": "int8_float16"}
+# mtypes = {"cpu": "int8", "cuda": "float32"}
+mtypes = {"cpu": "int8", "cuda": "float32"}
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
-DOWNLOAD_URL = "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
+DOWNLOAD_URL = (
+    "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
+)
+MAX_PROCESS_LENGTH = 60000  # 30 minutes in ms, split longer audio files into segments
 DOWNLOAD_START = 1  # Start from video number
 DOWNLOAD_NUMBER = 999  # Max number of videos to download
 
@@ -98,48 +102,62 @@ print(
     f"    [INFO] Best attempt ({best_attempt_time+1}) \033[1mfetched \033[4m{len(video_info)} videos\033[0m from the playlist"
 )
 
+
 for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
+
+    # Conditions and exceptions to make the loop reliable:
     title = vid["title"]
     url = vid["url"]
-
     if number == DOWNLOAD_NUMBER:
-        print(f"{number+1} of video downloaded. Exitting...")
+        print(
+            f"[INFO] Reached the final number ({number+1}) of videos downloaded. Exitting..."
+        )
         break
-
     print(
         f"\n    [INFO] \033[1mProcessing video:\033[0m \033[4m'{title}'\033[0m: {number+1} of {DOWNLOAD_NUMBER} (len: {len(video_info)})...\n       URL: {url}\n"
     )
-
     if title == "[Private video]" or title == "[Deleted video]":
         print(f"[INFO] Skipping video: {title}")
         continue
-    
-    
+
+    # Attempt to download the video(audio) from the current URL:
     for attempt in range(max_retries):
         try:
             with yt_dlp.YoutubeDL(ydl_opts_download) as ydl_audio:
                 ydl_audio.download([url])
 
-            # Did audio file downloaded successfully? If not raise an error
+            # Did audio file downloaded successfully? If not raise an exception:
             if not os.path.exists(f"{WORKING_AUDIO}.mp3"):
-                raise FileNotFoundError(f"No audio file found for: {title}")
+                raise FileNotFoundError(f"[ERROR] No audio file found for: {title}")
 
             print(f"[INFO] Downloaded: {title}")
             print("[INFO] Processing diarization pipeline...")
 
-            DiarizePipeline(
-                audio=f"{WORKING_AUDIO}.mp3",  # "name of the target audio file"
-                stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
-                suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
-                model_name="medium.en",  # "name of the Whisper model to use"
-                batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
-                language=None,  # "Language spoken in the audio, specify None to perform language detection",
-                device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
-                model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
-                title=title,  # "title of the video"
-            )
+            # Split audio and diarize:
+            audio_file_path = f"{WORKING_AUDIO}.mp3"
+            for segment_path in split_audio(
+                file_path=audio_file_path,
+                segment_length_ms=MAX_PROCESS_LENGTH,
+                overlap_ms=2000,
+            ):
+                print(f"[INFO] Processing segment: {segment_path}")
 
-            os.remove(f"{WORKING_AUDIO}.mp3")
+                DiarizePipeline(
+                    audio=segment_path,  # "Diarization target audio file"
+                    stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
+                    suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
+                    model_name="medium.en",  # "name of the Whisper model to use"
+                    batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
+                    language=None,  # "Language spoken in the audio, specify None to perform language detection",
+                    device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
+                    model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
+                    title=title,  # "title of the video"
+                )
+
+                os.remove(segment_path)
+                print(f"[INFO] Deleted segment: {segment_path}")
+
+            os.remove(audio_file_path)
             print(f"[INFO] Deleted audio file: {WORKING_AUDIO}.mp3")
             break  # Exit retry loop after successful download and processing
 

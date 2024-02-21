@@ -7,6 +7,8 @@ import nltk
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_HF, DEFAULT_ALIGN_MODELS_TORCH
 import logging
 from whisperx.utils import LANGUAGES, TO_LANGUAGE_CODE
+from pydub import AudioSegment
+import math
 
 punct_model_langs = [
     "en",
@@ -397,3 +399,25 @@ def process_language_arg(language: str, model_name: str):
             )
         language = "en"
     return language
+
+    # Helper function to split long audio into segments
+
+
+def split_audio(
+    file_path, segment_length_ms=1800000, overlap_ms=5000
+):  # Overlap of 5 seconds
+    audio = AudioSegment.from_mp3(file_path)
+    total_length_ms = len(audio)
+    segments = math.ceil(
+        (total_length_ms - overlap_ms) / (segment_length_ms - overlap_ms)
+    )
+
+    for i in range(segments):
+        start = i * (segment_length_ms - overlap_ms)
+        end = min(
+            start + segment_length_ms, total_length_ms
+        )  # Ensure the end does not exceed the audio length
+        segment = audio[start:end]
+        segment_file_path = f"{file_path[:-4]}_segment_{i}.mp3"
+        segment.export(segment_file_path, format="mp3")
+        yield segment_file_path
