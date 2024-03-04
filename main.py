@@ -4,24 +4,29 @@ pip install --use-pep517 -r requirements.txt
 pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118 --timeout 300 --retries 100
 """
 
+import argparse
 import time
 import yt_dlp
 import os
 from diarize_class import DiarizePipeline
 from helpers import split_audio
 
+args = argparse.ArgumentParser()
+args.add_argument(
+    "--url", "-url", help="url of the playlist", required=True, type=str
+)
+args = args.parse_args()
+
 device = "cuda"
-batch_size = 4  # reduce if low on GPU mem
-# mtypes = {"cpu": "int8", "cuda": "float32"}
-mtypes = {"cpu": "int8", "cuda": "float32"}
+batch_size = 2  # reduce if low on GPU mem
+#mtypes = {"cpu": "int8", "cuda": "float32"}
+mtypes = {"cpu": "int8", "cuda": "int8"}
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
-DOWNLOAD_URL = (
-    "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
-)
-MAX_PROCESS_LENGTH = 60000  # 30 minutes in ms, split longer audio files into segments
+#DOWNLOAD_URL = (args.url)
+DOWNLOAD_URL = "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
 DOWNLOAD_START = 1  # Start from video number
 DOWNLOAD_NUMBER = 999  # Max number of videos to download
 
@@ -135,28 +140,35 @@ for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
 
             # Split audio and diarize:
             audio_file_path = f"{WORKING_AUDIO}.mp3"
+            
+            """
             for segment_path in split_audio(
                 file_path=audio_file_path,
                 segment_length_ms=MAX_PROCESS_LENGTH,
                 overlap_ms=2000,
             ):
                 print(f"[INFO] Processing segment: {segment_path}")
-
-                DiarizePipeline(
-                    audio=segment_path,  # "Diarization target audio file"
-                    stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
-                    suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
-                    model_name="medium.en",  # "name of the Whisper model to use"
-                    batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
-                    language=None,  # "Language spoken in the audio, specify None to perform language detection",
-                    device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
-                    model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
-                    title=title,  # "title of the video"
-                )
-
+            """
+            
+            DiarizePipeline(
+                audio=audio_file_path,  # "Diarization target audio file"
+                stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
+                suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
+                model_name="medium.en",  # "name of the Whisper model to use"
+                batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
+                language=None,  # "Language spoken in the audio, specify None to perform language detection",
+                device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
+                model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
+                title=title,  # "title of the video"
+                #split_title = segment_path # title of the splitted segment of the video"
+                
+            )
+            """
                 os.remove(segment_path)
                 print(f"[INFO] Deleted segment: {segment_path}")
-
+            """
+            
+            
             os.remove(audio_file_path)
             print(f"[INFO] Deleted audio file: {WORKING_AUDIO}.mp3")
             break  # Exit retry loop after successful download and processing

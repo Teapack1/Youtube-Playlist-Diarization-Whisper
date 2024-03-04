@@ -43,7 +43,6 @@ class DiarizePipeline:
         model_path="MODEL",
         title="",
     ):
-        self.last_speaker = last_speaker
 
         if stemming:
             return_code = os.system(
