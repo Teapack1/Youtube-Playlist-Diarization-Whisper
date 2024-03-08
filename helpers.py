@@ -157,7 +157,7 @@ def get_last_word_idx_of_sentence(word_idx, word_list, max_words):
 
 
 def get_realigned_ws_mapping_with_punctuation(
-    word_speaker_mapping, max_words_in_sentence=50
+    word_speaker_mapping, max_words_in_sentence=75
 ):
     is_word_sentence_end = (
         lambda x: x >= 0

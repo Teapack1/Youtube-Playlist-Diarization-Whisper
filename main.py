@@ -13,28 +13,65 @@ from helpers import split_audio
 
 args = argparse.ArgumentParser()
 args.add_argument(
-    "--url", "-url", help="url of the playlist", required=True, type=str
+    "-url",
+    help="url of the playlist",
+    required=True,
+    type=str,
+    default="https://www.youtube.com/playlist?list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4",  # Add your playlist URL
 )
+args.add_argument(
+    "-min",
+    help="playlist start video no.",
+    required=False,
+    type=int,
+    default=78,
+)
+args.add_argument(
+    "-max",
+    help="playlist end video no.",
+    required=False,
+    type=int,
+    default=999,
+)
+args.add_argument(
+    "-batch",
+    help="batch size",
+    required=False,
+    type=int,
+    default=4,
+)
+args.add_argument(
+    "-device",
+    help="device used for diarization",
+    required=False,
+    type=str,
+    default="cuda",
+)
+args.add_argument(
+    "-mtypes",
+    help="precission settings, use dictionary format i.e.: {'cpu': 'int8', 'cuda': 'int8_float16'}",
+    required=False,
+    type=dict,
+    default={"cpu": "int8", "cuda": "float16"},
+)
+
 args = args.parse_args()
 
-device = "cuda"
-batch_size = 2  # reduce if low on GPU mem
-#mtypes = {"cpu": "int8", "cuda": "float32"}
-mtypes = {"cpu": "int8", "cuda": "int8"}
+device = args.device  # "cuda" or "cpu"
+batch_size = args.batch  # reduce if low on GPU mem
+mtypes = args.mtypes
 DATASET_PATH = "Downloads/dataset"
 MODEL_PATH = "Downloads/model"
 DOWNLOADS = "Downloads"
 WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
-#DOWNLOAD_URL = (args.url)
-DOWNLOAD_URL = "https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB"
-DOWNLOAD_START = 1  # Start from video number
-DOWNLOAD_NUMBER = 999  # Max number of videos to download
+DOWNLOAD_URL = args.url
+DOWNLOAD_START = args.min  # Start from video number
+DOWNLOAD_NUMBER = args.max  # Max number of videos to download
 
-retry_delay = 60  # Delay between retries in seconds
-max_retries = 3
+retry_delay = 30  # Delay between retries in seconds
+max_retries = 5
 
-# Lex Fridman's podcast https://www.youtube.com/watch?v=zMYvGf7BA9o&list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
-# Test Playlist shorts https://www.youtube.com/playlist?list=PLPWDuIHYjJBHFaOlKGrn2aHy4AHarss6A
+# Lex Fridman's podcast https://www.youtube.com/playlist?list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4
 # Williamson podcast https://www.youtube.com/playlist?list=PLkL7BvJXiqSQu3i72hSrG4vUkDuaneHuB
 # Williamson shorts https://www.youtube.com/channel/UCIaH-gZIVC432YRjNVvnyCA/shorts
 
@@ -107,8 +144,13 @@ print(
     f"    [INFO] Best attempt ({best_attempt_time+1}) \033[1mfetched \033[4m{len(video_info)} videos\033[0m from the playlist"
 )
 
+video_info = video_info[DOWNLOAD_START - 1 : DOWNLOAD_NUMBER]
+print(
+    f"    [INFO] Downloading videos no.: ({DOWNLOAD_START-1} - {DOWNLOAD_NUMBER}) from the playlist"
+)
 
-for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
+
+for number, vid in enumerate(video_info):
 
     # Conditions and exceptions to make the loop reliable:
     title = vid["title"]
@@ -127,57 +169,32 @@ for number, vid in enumerate(video_info, start=DOWNLOAD_START - 1):
 
     # Attempt to download the video(audio) from the current URL:
     for attempt in range(max_retries):
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts_download) as ydl_audio:
-                ydl_audio.download([url])
 
-            # Did audio file downloaded successfully? If not raise an exception:
-            if not os.path.exists(f"{WORKING_AUDIO}.mp3"):
-                raise FileNotFoundError(f"[ERROR] No audio file found for: {title}")
+        with yt_dlp.YoutubeDL(ydl_opts_download) as ydl_audio:
+            ydl_audio.download([url])
 
-            print(f"[INFO] Downloaded: {title}")
-            print("[INFO] Processing diarization pipeline...")
+        # Did audio file downloaded successfully? If not raise an exception:
+        if not os.path.exists(f"{WORKING_AUDIO}.mp3"):
+            raise FileNotFoundError(f"[ERROR] No audio file found for: {title}")
 
-            # Split audio and diarize:
-            audio_file_path = f"{WORKING_AUDIO}.mp3"
-            
-            """
-            for segment_path in split_audio(
-                file_path=audio_file_path,
-                segment_length_ms=MAX_PROCESS_LENGTH,
-                overlap_ms=2000,
-            ):
-                print(f"[INFO] Processing segment: {segment_path}")
-            """
-            
-            DiarizePipeline(
-                audio=audio_file_path,  # "Diarization target audio file"
-                stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
-                suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
-                model_name="medium.en",  # "name of the Whisper model to use"
-                batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
-                language=None,  # "Language spoken in the audio, specify None to perform language detection",
-                device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
-                model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
-                title=title,  # "title of the video"
-                #split_title = segment_path # title of the splitted segment of the video"
-                
-            )
-            """
-                os.remove(segment_path)
-                print(f"[INFO] Deleted segment: {segment_path}")
-            """
-            
-            
-            os.remove(audio_file_path)
-            print(f"[INFO] Deleted audio file: {WORKING_AUDIO}.mp3")
-            break  # Exit retry loop after successful download and processing
+        print(f"[INFO] Downloaded: {title}")
+        print("[INFO] Processing diarization pipeline...")
 
-        except Exception as e:
-            print(f"[ERROR] An error occurred: {e}")
-            if attempt < max_retries - 1:
-                print(f"[INFO] Retrying in {retry_delay} seconds...")
-                time.sleep(retry_delay)
-            else:
-                print("[ERROR] Maximum retries reached, skipping video.")
-                break  # Skip to the next video
+        # Split audio and diarize:
+        audio_file_path = f"{WORKING_AUDIO}.mp3"
+
+        DiarizePipeline(
+            audio=audio_file_path,  # "Diarization target audio file"
+            stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
+            suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
+            model_name="medium.en",  # "name of the Whisper model to use"
+            batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
+            language=None,  # "Language spoken in the audio, specify None to perform language detection",
+            device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
+            model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
+            title=title,  # "title of the video"
+        )
+
+        os.remove(audio_file_path)
+        print(f"[INFO] Deleted audio file: {WORKING_AUDIO}.mp3")
+        break  # Exit retry loop after successful download and processing
