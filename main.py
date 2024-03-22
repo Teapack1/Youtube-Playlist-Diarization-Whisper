@@ -24,7 +24,7 @@ args.add_argument(
     help="playlist start video no.",
     required=False,
     type=int,
-    default=131,
+    default=1,
 )
 args.add_argument(
     "-max",
