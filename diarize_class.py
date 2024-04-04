@@ -18,19 +18,6 @@ class DiarizePipeline:
         self.last_speaker = None
         self.last_segment = None
 
-        if not os.path.exists(self.result_file_path):
-            with open(
-                f"{self.result_file_path}/dataset.csv",
-                mode="w",
-                newline="",
-                encoding="utf-8",
-            ) as file:
-                writer = csv.DictWriter(
-                    file,
-                    fieldnames=["speaker", "text", "title", "start_time", "end_time"],
-                )
-                writer.writeheader()
-
     def __call__(
         self,
         audio,
@@ -42,7 +29,22 @@ class DiarizePipeline:
         device="cuda" if torch.cuda.is_available() else "cpu",
         model_path="MODEL",
         title="",
+        nth_output_file=0,
     ):
+
+        # Create a new output file
+        if not os.path.exists(self.result_file_path):
+            with open(
+                f"{self.result_file_path}/dataset_{nth_output_file}.csv",
+                mode="w",
+                newline="",
+                encoding="utf-8",
+            ) as file:
+                writer = csv.DictWriter(
+                    file,
+                    fieldnames=["speaker", "text", "title", "start_time", "end_time"],
+                )
+                writer.writeheader()
 
         if stemming:
             return_code = os.system(
@@ -181,7 +183,7 @@ class DiarizePipeline:
         ) as srt:
             write_srt(ssm, srt)
 
-        self.append_data(ssm, title)
+        self.append_data(ssm, title, nth_output_file)
         cleanup(temp_path)
 
         ######### Write dataset #########
@@ -203,9 +205,9 @@ class DiarizePipeline:
             title = title.replace(old, new)
         return title
 
-    def append_data(self, result_segments, title):
+    def append_data(self, result_segments, title, nth_output_file):
         with open(
-            f"{self.result_file_path}/dataset.csv",
+            f"{self.result_file_path}/dataset_{nth_output_file}.csv",
             mode="a",
             newline="",
             encoding="utf-8",
@@ -234,12 +236,11 @@ class DiarizePipeline:
                     segment["speaker"] = "user"
                 else:
                     segment["speaker"] = "assistant"
-                print(segment)
 
                 # Ensure the segment has all required fields
                 if all(
                     key in segment
-                    for key in ["speaker", "text", "start_time", "end_time"]
+                    for key in ["speaker", "text", "title", "start_time", "end_time"]
                 ):
                     text_without_quotes = segment["text"].replace('"', "")
                     print(text_without_quotes)

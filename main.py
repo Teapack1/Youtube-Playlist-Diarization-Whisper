@@ -1,6 +1,11 @@
 """
 Install:
-pip install --use-pep517 -r requirements.txt
+Python 3.10
+"https://visualstudio.microsoft.com/cs/visual-cpp-build-tools/
+
+pip install Cython
+pip install youtokentome
+pip install -r requirements.txt
 pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118 --timeout 300 --retries 100
 """
 
@@ -54,6 +59,13 @@ args.add_argument(
     type=dict,
     default={"cpu": "int8", "cuda": "float16"},
 )
+args.add_argument(
+    "-episodes",
+    help="How many episodes to download and put into one output file (default: 100)",
+    required=False,
+    type=int,
+    default=100,
+)
 
 args = args.parse_args()
 
@@ -67,6 +79,8 @@ WORKING_AUDIO = os.path.join(DOWNLOADS, "processed_audio_file")
 DOWNLOAD_URL = args.url
 DOWNLOAD_START = args.min  # Start from video number
 DOWNLOAD_NUMBER = args.max  # Max number of videos to download
+EPISODES = args.episodes  # How many episodes to download and put into one output file
+nth_output_file = 0  #  n.th number of output file where output will be stored
 
 retry_delay = 30  # Delay between retries in seconds
 max_retries = 5
@@ -156,7 +170,6 @@ print(
 
 for number, vid in enumerate(video_info):
 
-    # Conditions and exceptions to make the loop reliable:
     title = vid["title"]
     url = vid["url"]
     duration = vid["duration"]
@@ -173,11 +186,19 @@ for number, vid in enumerate(video_info):
         print(f"[INFO] Skipping video: {title}")
         continue
 
-    if duration > 10800:  # Longer than 3 hours
-        ydl_opts_download["postprocessors"][0]["preferredquality"] = "128"
-        print(f"[INFO] Video is longer than 3 hours, setting quality 128kbps...")
+    if duration:
+        if duration > 10800:  # Longer than 3 hours
+            ydl_opts_download["postprocessors"][0]["preferredquality"] = "128"
+            print(f"[INFO] Video is longer than 3 hours, setting quality 128kbps...")
+        else:
+            ydl_opts_download["postprocessors"][0]["preferredquality"] = "192"
     else:
         ydl_opts_download["postprocessors"][0]["preferredquality"] = "192"
+
+    # Setup output file for diarization text to store
+    if number % EPISODES == 0:
+        nth_output_file += 1
+        print(f"[INFO] {nth_output_file}. output file created")
 
     # Attempt to download the video(audio) from the current URL:
     for attempt in range(max_retries):
@@ -205,6 +226,7 @@ for number, vid in enumerate(video_info):
                 device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",
                 model_path=MODEL_PATH,  # "path to the folder where the model will be downloaded to"
                 title=title,  # "title of the video"
+                nth_output_file=nth_output_file,  # "n.th number of output file where output will be stored"
             )
 
             os.remove(audio_file_path)

@@ -1,9 +1,7 @@
-Cython
-youtokentome 
 wget
 yt-dlp
 git+https://github.com/NVIDIA/NeMo.git@df9f0d1e522aec2bafec5902fe87c6ee74eaef96#egg=nemo_toolkit[asr]
-git+https://github.com/m-bain/whisperX.git@a5dca2cc65b1a37f32a347e574b2c56af3a7434a
+git+https://github.com/m-bain/whisperX.git
 git+https://github.com/facebookresearch/demucs#egg=demucs 
 deepmultilingualpunctuation 
 transformers
