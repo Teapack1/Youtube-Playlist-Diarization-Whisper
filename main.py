@@ -22,7 +22,7 @@ args.add_argument(
     help="url of the playlist",
     required=True,
     type=str,
-    default="https://www.youtube.com/playlist?list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4",  # Add your playlist URL
+    # default="https://www.youtube.com/playlist?list=PLrAXtmErZgOdP_8GztsuKi9nrraNbKKp4",  # Add your playlist URL
 )
 args.add_argument(
     "-min",
@@ -33,7 +33,7 @@ args.add_argument(
 )
 args.add_argument(
     "-max",
-    help="playlist end video no.",
+    help="At what video number do you want to stop download?",
     required=False,
     type=int,
     default=999,
@@ -66,6 +66,13 @@ args.add_argument(
     type=int,
     default=100,
 )
+args.add_argument(
+    "-model",
+    help="Faster Whisper model name ('medium.en')",
+    required=False,
+    type=str,
+    default="medium.en",
+)
 
 args = args.parse_args()
 
@@ -80,6 +87,7 @@ DOWNLOAD_URL = args.url
 DOWNLOAD_START = args.min  # Start from video number
 DOWNLOAD_NUMBER = args.max  # Max number of videos to download
 EPISODES = args.episodes  # How many episodes to download and put into one output file
+WHISPER_MODEL = args.model  # "medium.en", "large-v3", "distil-large-v3"
 nth_output_file = 0  #  n.th number of output file where output will be stored
 
 retry_delay = 30  # Delay between retries in seconds
@@ -220,7 +228,7 @@ for number, vid in enumerate(video_info):
                 audio=audio_file_path,  # "Diarization target audio file"
                 stemming=False,  # "Disables source separation. This helps with long files that don't contain a lot of music."
                 suppress_numerals=True,  # "Suppresses Numerical Digits. This helps the diarization accuracy but converts all digits into written text.
-                model_name="medium.en",  # "name of the Whisper model to use"
+                model_name=WHISPER_MODEL,  # "name of the Whisper model to use"
                 batch_size=batch_size,  # "Batch size for batched inference, reduce if you run out of memory, set to 0 for non-batched inference"
                 language=None,  # "Language spoken in the audio, specify None to perform language detection",
                 device=device,  # "if you have a GPU use 'cuda', otherwise 'cpu'",

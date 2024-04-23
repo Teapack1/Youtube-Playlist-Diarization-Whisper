@@ -33,7 +33,7 @@ class DiarizePipeline:
     ):
 
         # Create a new output file
-        if not os.path.exists(self.result_file_path):
+        if not os.path.exists(f"{self.result_file_path}/dataset_{nth_output_file}.csv"):
             with open(
                 f"{self.result_file_path}/dataset_{nth_output_file}.csv",
                 mode="w",
@@ -240,7 +240,7 @@ class DiarizePipeline:
                 # Ensure the segment has all required fields
                 if all(
                     key in segment
-                    for key in ["speaker", "text", "title", "start_time", "end_time"]
+                    for key in ["speaker", "text", "start_time", "end_time"]
                 ):
                     text_without_quotes = segment["text"].replace('"', "")
                     print(text_without_quotes)

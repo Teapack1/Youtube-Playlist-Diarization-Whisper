@@ -34,7 +34,7 @@ whisper_langs = sorted(LANGUAGES.keys()) + sorted(
 
 
 def create_config(output_dir):
-    DOMAIN_TYPE = "general"  # Can be meeting, telephonic, podcast or general based on domain type of the audio file
+    DOMAIN_TYPE = "telephonic"  # Can be meeting, telephonic, podcast or general based on domain type of the audio file
     CONFIG_LOCAL_DIRECTORY = "nemo_msdd_configs"
     CONFIG_FILE_NAME = f"diar_infer_{DOMAIN_TYPE}.yaml"
     MODEL_CONFIG_PATH = os.path.join(CONFIG_LOCAL_DIRECTORY, CONFIG_FILE_NAME)
